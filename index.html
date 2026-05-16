@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batch Photo Editor</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="sidebar">
+
+    <div class="logo">
+      Photo<span>Batch</span>
+    </div>
+
+    <div class="tool-group">
+  <div class="tool-title">Ảnh</div>
+
+  <button class="btn" id="selectAllBtn">
+    Chọn tất cả ảnh
+  </button>
+
+  <button class="btn" id="unselectAllBtn">
+    Bỏ chọn tất cả
+  </button>
+
+  <div class="export-size">
+
+    <select id="sizePreset">
+      <option value="1080x1080">Hình Chuẩn</option>
+      <option value="custom">Tự nhập</option>
+    </select>
+
+    <input type="number" id="exportWidth" value="1080" placeholder="Width">
+    <input type="number" id="exportHeight" value="1080" placeholder="Height">
+
+  </div>
+</div>
+
+    <div class="tool-group">
+      <div class="tool-title">Nền</div>
+
+      <div class="color-list">
+        <div class="color-item active" style="background:white" data-bg="white"></div>
+        <div class="color-item" style="background:black" data-bg="black"></div>
+        <div class="color-item" style="background:#8b5cf6" data-bg="#8b5cf6"></div>
+        <div class="color-item" style="background:linear-gradient(45deg,#ff7b7b,#ffb86c)" data-bg="linear-gradient(45deg,#ff7b7b,#ffb86c)"></div>
+        <div class="color-item" style="background:linear-gradient(45deg,#00c6ff,#0072ff)" data-bg="linear-gradient(45deg,#00c6ff,#0072ff)"></div>
+      </div>
+
+      <button class="btn" id="applyBgBtn">
+        Áp dụng nền
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <div class="tool-title">Chỉnh sửa</div>
+
+      <label>Độ sáng</label>
+      <input type="range" min="50" max="200" value="100" id="brightness">
+
+      <label>Tương phản</label>
+      <input type="range" min="50" max="200" value="100" id="contrast">
+
+      <label>Bão hòa</label>
+      <input type="range" min="0" max="200" value="100" id="saturate">
+
+      <button class="btn" id="applyFilterBtn">
+        Áp dụng chỉnh sửa
+      </button>
+      <button class="btn" id="cropBtn">
+    Cắt ảnh
+  </button>
+
+    </div>
+
+    <div class="tool-group">
+      <div class="tool-title">Bóng</div>
+
+      <label>Độ mờ bóng</label>
+      <input type="range" min="0" max="100" value="20" id="shadowOpacity">
+
+      <label>Độ xa bóng</label>
+      <input type="range" min="0" max="50" value="10" id="shadowDistance">
+
+      <button class="btn" id="applyShadowBtn">
+        Thêm bóng
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <div class="tool-title">AI</div>
+
+      <button class="btn" id="removeBgBtn">
+        Xóa nền tất cả ảnh
+      </button>
+
+      <button class="btn" id="exportBtn">
+        Xuất tất cả
+      </button>
+    </div>
+
+  </div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <h2>Batch Photo Editor</h2>
+      <div class="counter">
+        <span id="count">0</span> / 250 ảnh
+      </div>
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <h1>Thêm ảnh</h1>
+      <p>Kéo thả hoặc chọn tối đa 250 ảnh</p>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+
+  </div>
+
+</div>
+
+<input type="file" id="fileInput" multiple accept="image/*" class="hidden">
+
+<!-- ==================== CROP MODAL (đã di chuyển lên đây) ==================== -->
+<div class="crop-modal" id="cropModal">
+  <div class="crop-box">
+    <img id="cropImage">
+    <div class="crop-actions">
+      <button class="btn" id="saveCropBtn">
+        Lưu Crop
+      </button>
+      <button class="btn" id="closeCropBtn">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const gallery = document.getElementById('gallery');
+const count = document.getElementById('count');
+const API_KEY = "hGQFQ64xV8aDm48UEmzhWMSC";
+let totalImages = 0;
+const MAX_IMAGES = 250;
+
+let selectedBackground = 'white';
+
+const sizePreset = document.getElementById('sizePreset');
+const exportWidth = document.getElementById('exportWidth');
+const exportHeight = document.getElementById('exportHeight');
+
+sizePreset.addEventListener('change', () => {
+
+  const value = sizePreset.value;
+
+  if(value === '1200x1800'){
+
+    exportWidth.value = 1200;
+    exportHeight.value = 1800;
+
+  }
+  else if(value === '1800x1200'){
+
+    exportWidth.value = 1800;
+    exportHeight.value = 1200;
+
+  }
+  else if(value === '1080x1080'){
+
+    exportWidth.value = 1080;
+    exportHeight.value = 1080;
+
+  }
+  else if(value === 'custom'){
+
+    exportWidth.value = '';
+    exportHeight.value = '';
+
+  }
+
+  applyPreviewSize();
+
+});
+
+function applyPreviewSize(){
+
+  const width = exportWidth.value || 300;
+  const height = exportHeight.value || 300;
+
+  document.querySelectorAll('.preview').forEach(preview => {
+
+    preview.style.width = width / 4 + 'px';
+    preview.style.height = height / 4 + 'px';
+
+  });
+
+}
+
+exportWidth.addEventListener('input', applyPreviewSize);
+exportHeight.addEventListener('input', applyPreviewSize);
+
+uploadArea.addEventListener('click', () => {
+  fileInput.click();
+});
+
+uploadArea.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  handleFiles(e.dataTransfer.files);
+});
+
+fileInput.addEventListener('change', (e) => {
+  handleFiles(e.target.files);
+});
+
+function updateCount(){
+  count.innerText = totalImages;
+}
+
+function handleFiles(files){
+
+  const imageFiles = [...files].filter(file => file.type.startsWith('image/'));
+
+  if(totalImages + imageFiles.length > MAX_IMAGES){
+    alert('Tối đa 250 ảnh');
+    return;
+  }
+
+  imageFiles.forEach(file => {
+
+    const reader = new FileReader();
+
+    reader.onload = function(e){
+
+      const card = document.createElement('div');
+      card.className = 'card selected';
+      card.dataset.filename = file.name;
+
+      card.innerHTML = `
+        <input type="checkbox" class="check" checked>
+        <div class="preview">
+          <img src="${e.target.result}">
+        </div>
+        <div class="info">
+          <h3>${file.name}</h3>
+        </div>
+        <button class="delete-btn">X</button>
+      `;
+const deleteBtn = card.querySelector('.delete-btn');
+
+deleteBtn.addEventListener('click', () => {
+  card.remove();
+  totalImages--;
+  updateCount();
+});
+
+      const checkbox = card.querySelector('.check');
+      card.addEventListener('click', (e) => {
+
+  if(e.target.classList.contains('delete-btn')) return;
+
+  if(e.target.classList.contains('check')) return;
+
+  checkbox.checked = !checkbox.checked;
+
+  if(checkbox.checked){
+    card.classList.add('selected');
+  }
+  else{
+    card.classList.remove('selected');
+  }
+
+});
+
+      checkbox.addEventListener('change', () => {
+
+        if(checkbox.checked){
+          card.classList.add('selected');
+        }
+        else{
+          card.classList.remove('selected');
+        }
+
+      });
+
+      gallery.appendChild(card);
+applyPreviewSize();
+      totalImages++;
+      updateCount();
+
+    }
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+function getSelectedCards(){
+  return [...document.querySelectorAll('.card.selected')];
+}
+
+const bgItems = document.querySelectorAll('.color-item');
+
+bgItems.forEach(item => {
+
+  item.addEventListener('click', () => {
+
+    bgItems.forEach(i => i.classList.remove('active'));
+
+    item.classList.add('active');
+
+    selectedBackground = item.dataset.bg;
+
+  });
+
+});
+
+// Áp dụng nền
+document.getElementById('applyBgBtn').addEventListener('click', () => {
+
+  getSelectedCards().forEach(card => {
+
+    const preview = card.querySelector('.preview');
+
+    preview.style.background = selectedBackground;
+
+  });
+
+});
+
+// Chỉnh sửa ảnh
+document.getElementById('applyFilterBtn').addEventListener('click', () => {
+
+  const brightness = document.getElementById('brightness').value;
+  const contrast = document.getElementById('contrast').value;
+  const saturate = document.getElementById('saturate').value;
+
+  getSelectedCards().forEach(card => {
+
+    const img = card.querySelector('img');
+
+    img.style.filter = `
+      brightness(${brightness}%)
+      contrast(${contrast}%)
+      saturate(${saturate}%)
+    `;
+
+  });
+
+});
+
+// Bóng
+document.getElementById('applyShadowBtn').addEventListener('click', () => {
+
+  const opacity = document.getElementById('shadowOpacity').value;
+  const distance = document.getElementById('shadowDistance').value;
+
+  getSelectedCards().forEach(card => {
+
+    const img = card.querySelector('img');
+
+    img.style.filter += ` drop-shadow(0 ${distance}px 25px rgba(0,0,0,${opacity / 100}))`;
+
+  });
+
+});
+
+// Chọn tất cả
+document.getElementById('selectAllBtn').addEventListener('click', () => {
+
+  document.querySelectorAll('.card').forEach(card => {
+
+    card.classList.add('selected');
+    card.querySelector('.check').checked = true;
+
+  });
+
+});
+
+document.getElementById('unselectAllBtn').addEventListener('click', () => {
+
+  document.querySelectorAll('.card').forEach(card => {
+
+    card.classList.remove('selected');
+    card.querySelector('.check').checked = false;
+
+  });
+
+});
+
+document.getElementById('removeBgBtn').addEventListener('click', async () => {
+
+  const cards = getSelectedCards();
+
+  if (cards.length === 0) {
+    alert("Vui lòng chọn ảnh!");
+    return;
+  }
+
+  for (const card of cards) {
+
+    const img = card.querySelector('img');
+
+    const response = await fetch(img.src);
+    const blob = await response.blob();
+
+    const formData = new FormData();
+    formData.append("image_file", blob);
+
+    const res = await fetch("https://api.remove.bg/v1.0/removebg", {
+      method: "POST",
+      headers: {
+        "X-Api-Key": API_KEY
+      },
+      body: formData
+    });
+
+    if (!res.ok) {
+      alert("Lỗi remove.bg (có thể hết lượt free)");
+      return;
+    }
+
+    const resultBlob = await res.blob();
+    const url = URL.createObjectURL(resultBlob);
+
+    img.src = url;
+    card.querySelector('.preview').style.background = "transparent";
+  }
+
+  alert("Tách nền xong!");
+});
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+
+  const width = +document.getElementById('exportWidth').value || 1080;
+  const height = +document.getElementById('exportHeight').value || 1080;
+
+  const zip = new JSZip();
+  const cards = [...document.querySelectorAll('.card')];
+
+  let exportCount = 0;
+
+  for (const card of cards) {
+
+    const checkbox = card.querySelector('.check');
+
+    // Chỉ xuất ảnh đã chọn
+    if (!checkbox.checked) continue;
+
+    const img = card.querySelector('img');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+
+    const preview = card.querySelector('.preview');
+
+    // =========================
+    // LẤY BACKGROUND
+    // =========================
+
+    const styles = window.getComputedStyle(preview);
+
+    const bgImage = styles.backgroundImage;
+    const bgColor = styles.backgroundColor;
+
+    // =========================
+    // VẼ NỀN
+    // =========================
+
+    if (bgImage && bgImage !== 'none') {
+
+      // Gradient tím cam
+      if (
+        bgImage.includes('255, 123, 123') ||
+        bgImage.includes('#ff7b7b')
+      ) {
+
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+
+        gradient.addColorStop(0, '#ff7b7b');
+        gradient.addColorStop(1, '#ffb86c');
+
+        ctx.fillStyle = gradient;
+      }
+
+      // Gradient xanh
+      else if (
+        bgImage.includes('0, 198, 255') ||
+        bgImage.includes('#00c6ff')
+      ) {
+
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+
+        gradient.addColorStop(0, '#00c6ff');
+        gradient.addColorStop(1, '#0072ff');
+
+        ctx.fillStyle = gradient;
+      }
+
+      else {
+
+        ctx.fillStyle = bgColor || '#ffffff';
+
+      }
+
+    } else {
+
+      ctx.fillStyle = bgColor || '#ffffff';
+
+    }
+
+    ctx.fillRect(0, 0, width, height);
+
+    // =========================
+    // FILTER ẢNH
+    // =========================
+
+    const computedFilter = window.getComputedStyle(img).filter;
+
+    if (computedFilter && computedFilter !== 'none') {
+      ctx.filter = computedFilter;
+    }
+
+    // =========================
+    // CANH ẢNH CHO ĐẸP
+    // =========================
+
+    const imageRatio = img.naturalWidth / img.naturalHeight;
+    const canvasRatio = width / height;
+
+    let drawWidth;
+    let drawHeight;
+    let x;
+    let y;
+
+    if (imageRatio > canvasRatio) {
+
+      drawHeight = height;
+      drawWidth = height * imageRatio;
+
+      x = (width - drawWidth) / 2;
+      y = 0;
+
+    } else {
+
+      drawWidth = width;
+      drawHeight = width / imageRatio;
+
+      x = 0;
+      y = (height - drawHeight) / 2;
+
+    }
+
+    // =========================
+    // VẼ ẢNH
+    // =========================
+
+    ctx.drawImage(img, x, y, drawWidth, drawHeight);
+
+    // Reset filter
+    ctx.filter = 'none';
+
+    // =========================
+    // XUẤT PNG
+    // =========================
+
+    const data = canvas.toDataURL('image/png');
+
+    const fileName =
+      card.dataset.filename || `photo-${exportCount + 1}.png`;
+
+    const cleanName = fileName.replace(/\.[^/.]+$/, '');
+
+    zip.file(
+      cleanName + '.png',
+      data.split(',')[1],
+      { base64: true }
+    );
+
+    exportCount++;
+
+  }
+
+  if (exportCount === 0) {
+    alert('Không có ảnh nào được chọn!');
+    return;
+  }
+
+  const content = await zip.generateAsync({
+    type: 'blob'
+  });
+
+  const link = document.createElement('a');
+
+  link.href = URL.createObjectURL(content);
+  link.download = 'photos.zip';
+
+  document.body.appendChild(link);
+
+  link.click();
+
+  document.body.removeChild(link);
+
+});
+
+// ====================== CROP CODE (giữ nguyên) ======================
+let cropper = null;
+let currentCropImg = null;
+
+const cropBtn = document.getElementById('cropBtn');
+const cropModal = document.getElementById('cropModal');
+const cropImage = document.getElementById('cropImage');
+const saveCropBtn = document.getElementById('saveCropBtn');
+const closeCropBtn = document.getElementById('closeCropBtn');
+
+// MỞ CROP
+cropBtn.addEventListener('click', () => {
+
+  const selected = getSelectedCards();
+
+  if(selected.length !== 1){
+    alert('Chỉ chọn 1 ảnh để crop');
+    return;
+  }
+
+  currentCropImg = selected[0].querySelector('img');
+  cropModal.style.display = 'flex';
+  cropImage.src = currentCropImg.src;
+
+});
+
+// KHI ẢNH LOAD XONG
+cropImage.addEventListener('load', () => {
+
+  if(cropper){
+    cropper.destroy();
+  }
+
+  cropper = new Cropper(cropImage, {
+    viewMode: 1,
+    dragMode: 'move',
+    autoCropArea: 1,
+    responsive: true,
+    background: false,
+    movable: true,
+    zoomable: true,
+    scalable: true,
+    rotatable: false
+  });
+
+});
+
+// LƯU CROP
+saveCropBtn.addEventListener('click', () => {
+
+  if(!cropper) return;
+
+  const canvas = cropper.getCroppedCanvas({
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high'
+  });
+
+  currentCropImg.src = canvas.toDataURL('image/png');
+
+  cropModal.style.display = 'none';
+
+  cropper.destroy();
+  cropper = null;
+
+});
+
+// ĐÓNG
+closeCropBtn.addEventListener('click', () => {
+
+  cropModal.style.display = 'none';
+
+  if(cropper){
+    cropper.destroy();
+    cropper = null;
+  }
+
+});
+</script>
+</body>
+</html>
