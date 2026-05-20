@@ -3,7 +3,7 @@ const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
 const count = document.getElementById('count');
 
-const API_KEY = "vDfDe2mnkcofwf6KEwWYShM5";
+const API_KEY = "PprdgczbfEkAz3E1sSWam2PG";
 
 let totalImages = 0;
 const MAX_IMAGES = 250;
@@ -865,13 +865,175 @@ document
 
     ctx.clearRect(0, 0, width, height);
 
-    ctx.drawImage(
-      img,
-      0,
-      0,
-      width,
-      height
-    );
+    ctx.clearRect(0, 0, width, height);
+
+// =========================
+// GET BACKGROUND
+// =========================
+
+const preview =
+  card.querySelector('.preview');
+
+const styles =
+  window.getComputedStyle(preview);
+
+const bgImage =
+  styles.backgroundImage;
+
+const bgColor =
+  styles.backgroundColor;
+
+// =========================
+// DRAW BACKGROUND
+// =========================
+
+if(bgImage && bgImage !== 'none'){
+
+  // Gradient hồng cam
+  if(
+    bgImage.includes('255, 123, 123') ||
+    bgImage.includes('#ff7b7b')
+  ){
+
+    const gradient =
+      ctx.createLinearGradient(
+        0,
+        0,
+        width,
+        height
+      );
+
+    gradient.addColorStop(0, '#ff7b7b');
+    gradient.addColorStop(1, '#ffb86c');
+
+    ctx.fillStyle = gradient;
+
+  }
+
+  // Gradient xanh
+  else if(
+    bgImage.includes('0, 198, 255') ||
+    bgImage.includes('#00c6ff')
+  ){
+
+    const gradient =
+      ctx.createLinearGradient(
+        0,
+        0,
+        width,
+        height
+      );
+
+    gradient.addColorStop(0, '#00c6ff');
+    gradient.addColorStop(1, '#0072ff');
+
+    ctx.fillStyle = gradient;
+
+  }
+
+  else{
+
+    ctx.fillStyle =
+      bgColor || 'white';
+
+  }
+
+}
+else{
+
+  // =========================
+  // NORMAL COLORS
+  // =========================
+
+  // White
+  if(
+    bgColor.includes('255, 255, 255')
+  ){
+
+    ctx.fillStyle = '#ffffff';
+
+  }
+
+  // Black
+  else if(
+    bgColor.includes('0, 0, 0')
+  ){
+
+    ctx.fillStyle = '#000000';
+
+  }
+
+  // Purple
+  else if(
+    bgColor.includes('139, 92, 246') ||
+    bgColor.includes('#8b5cf6')
+  ){
+
+    ctx.fillStyle = '#8b5cf6';
+
+  }
+
+  // Xanh đậm
+  else if(
+    bgColor.includes('0, 102, 204') ||
+    bgColor.includes('#0066CC')
+  ){
+
+    ctx.fillStyle = '#0066CC';
+
+  }
+
+  // Xanh sáng
+  else if(
+    bgColor.includes('30, 144, 255') ||
+    bgColor.includes('#1e90ff')
+  ){
+
+    ctx.fillStyle = '#1e90ff';
+
+  }
+
+  // Royal blue
+  else if(
+    bgColor.includes('55, 66, 250') ||
+    bgColor.includes('#3742fa')
+  ){
+
+    ctx.fillStyle = '#3742fa';
+
+  }
+
+  else{
+
+    ctx.fillStyle =
+      bgColor || 'white';
+
+  }
+
+}
+
+// =========================
+// DRAW BG
+// =========================
+
+ctx.fillRect(
+  0,
+  0,
+  width,
+  height
+);
+
+// =========================
+// DRAW IMAGE
+// =========================
+
+ctx.drawImage(
+  img,
+  0,
+  0,
+  width,
+  height
+);
 
     const data =
       canvas.toDataURL('image/png');
