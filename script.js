@@ -3,7 +3,7 @@ const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
 const count = document.getElementById('count');
 
-const API_KEY = "XtZSNFUzuyo292kC11JvST13";
+const API_KEY = "ZCd5ED6vFFv3ESahygrTDyrA";
 
 let totalImages = 0;
 const MAX_IMAGES = 250;
